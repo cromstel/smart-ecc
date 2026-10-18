@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { trySymlinkSync } = require('../lib/helpers/symlink-privilege');
 const { test } = require('node:test');
 const script = path.resolve(__dirname, '../../skills/frontend-design-direction/scripts/check-evidence.js');
 const { checkEvidence } = require(script);
@@ -104,7 +105,7 @@ test('rejects malformed reports and rendered evidence without inspection details
   }
 });
 
-test('CLI requires a nonempty local artifact and fails safely on invalid input', () => {
+test('CLI requires a nonempty local artifact and fails safely on invalid input', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ecc-ui-evidence-'));
   const external = fs.mkdtempSync(path.join(os.tmpdir(), 'ecc-ui-external-'));
   const input = path.join(dir, 'report.json');
@@ -118,9 +119,12 @@ test('CLI requires a nonempty local artifact and fails safely on invalid input',
     assert.equal(run(input).status, 1, 'empty artifact must fail');
     fs.writeFileSync(path.join(dir, 'render.png'), 'nonempty local artifact');
     fs.writeFileSync(path.join(external, 'render.png'), 'nonempty external artifact');
-    fs.symlinkSync(path.join(dir, 'render.png'), path.join(dir, 'linked.png'));
-    fs.symlinkSync(path.join(external, 'render.png'), path.join(dir, 'outside'));
-    fs.symlinkSync(external, path.join(dir, 'external-dir'), 'junction');
+    if (!trySymlinkSync(fs, path.join(dir, 'render.png'), path.join(dir, 'linked.png'))
+      || !trySymlinkSync(fs, path.join(external, 'render.png'), path.join(dir, 'outside'))
+      || !trySymlinkSync(fs, external, path.join(dir, 'external-dir'), 'junction')) {
+      t.skip('symlink creation not permitted here');
+      return;
+    }
     for (const artifact of ['.', 'https://example.com/render.png', path.join(dir, 'render.png'),
       '../render.png', 'C:\\render.png', 'linked.png', 'outside', 'external-dir/render.png']) {
       fs.writeFileSync(input, JSON.stringify({ ...report(), renderedEvidence: [{ viewport: '390x844', artifact, observation: 'Checked.' }] }));

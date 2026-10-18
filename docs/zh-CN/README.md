@@ -1186,17 +1186,17 @@ opencode
 
 ### 通过插件实现的钩子支持
 
-OpenCode 的插件系统比 Claude Code 更复杂，有 20 多种事件类型：
+OpenCode 的插件系统提供六个插件钩子（`event`、`tool.execute.before`、`tool.execute.after`、`shell.env`、`experimental.session.compacting`、`permission.ask`）以及 20 多种事件类型：
 
-| Claude Code 钩子 | OpenCode 插件事件 |
+| Claude Code 钩子 | OpenCode 传递方式 |
 |-----------------|----------------------|
 | PreToolUse | `tool.execute.before` |
 | PostToolUse | `tool.execute.after` |
-| Stop | `session.idle` |
-| SessionStart | `session.created` |
-| SessionEnd | `session.deleted` |
+| Stop | `event` (`session.idle`) |
+| SessionStart | `event` (`session.created`) |
+| SessionEnd | `event` (`session.deleted`) |
 
-**额外的 OpenCode 事件**：`file.edited`、`file.watcher.updated`、`message.updated`、`lsp.client.diagnostics`、`tui.toast.show` 等等。
+PreToolUse 和 PostToolUse 对应具名插件钩子；会话生命周期各行是传递给单个 `event` 钩子的事件类型。**额外的 OpenCode 事件**：`file.edited`、`file.watcher.updated`、`message.updated`、`lsp.client.diagnostics`、`tui.toast.show` 等等。
 
 ### 维护中的斜杠命令
 

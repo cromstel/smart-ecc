@@ -1435,17 +1435,17 @@ Die Konfiguration wird automatisch aus `.opencode/opencode.json` erkannt.
 
 ### Hook-Unterstützung über Plugins
 
-Das Plugin-System von OpenCode ist AUSGEFEILTER als das von Claude Code mit 20+ Event-Typen:
+Das Plugin-System von OpenCode stellt sechs Plugin-Hooks bereit (`event`, `tool.execute.before`, `tool.execute.after`, `shell.env`, `experimental.session.compacting`, `permission.ask`) sowie 20+ Event-Typen:
 
-| Claude-Code-Hook | OpenCode-Plugin-Event |
+| Claude-Code-Hook | OpenCode-Bereitstellung |
 |-----------------|----------------------|
 | PreToolUse | `tool.execute.before` |
 | PostToolUse | `tool.execute.after` |
-| Stop | `session.idle` |
-| SessionStart | `session.created` |
-| SessionEnd | `session.deleted` |
+| Stop | `event` (`session.idle`) |
+| SessionStart | `event` (`session.created`) |
+| SessionEnd | `event` (`session.deleted`) |
 
-**Zusätzliche OpenCode-Events**: `file.edited`, `file.watcher.updated`, `message.updated`, `lsp.client.diagnostics`, `tui.toast.show` und mehr.
+PreToolUse und PostToolUse entsprechen benannten Plugin-Hooks; die Zeilen zum Session-Lebenszyklus sind Event-Typen, die an den einzelnen `event`-Hook geliefert werden. **Zusätzliche OpenCode-Events**: `file.edited`, `file.watcher.updated`, `message.updated`, `lsp.client.diagnostics`, `tui.toast.show` und mehr.
 
 ### Gepflegte Slash-Einträge
 

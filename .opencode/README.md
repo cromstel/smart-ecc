@@ -72,7 +72,7 @@ a pointer to this command if the build step is missing.
 
 ## Features
 
-### Agents (26)
+### Agents (27)
 
 | Agent | Description |
 |-------|-------------|
@@ -98,6 +98,7 @@ a pointer to this command if the build step is missing.
 | loop-operator | Autonomous loop execution |
 | php-reviewer | PHP code review |
 | python-reviewer | Python code review |
+| ruby-reviewer | Ruby code review |
 | rust-reviewer | Rust code review |
 | rust-build-resolver | Rust build errors |
 | cpp-reviewer | C++ code review |
@@ -136,20 +137,26 @@ a pointer to this command if the build step is missing.
 
 ### Plugin Hooks
 
-| Hook | Event | Purpose |
-|------|-------|---------|
-| Prettier | `file.edited` | Auto-format JS/TS |
+The plugin registers six hooks: `event`, `tool.execute.before`,
+`tool.execute.after`, `shell.env`, `experimental.session.compacting`, and
+`permission.ask`. The V1 `Hooks` interface declares no named key for file,
+session, or todo updates, so those arrive as events on the single `event` hook
+and are dispatched on `event.type`.
+
+| Hook | Delivery | Purpose |
+|------|----------|---------|
+| Prettier | `event` (`file.edited`) | Auto-format JS/TS |
 | TypeScript | `tool.execute.after` | Check for type errors |
-| console.log | `file.edited` | Warn about debug statements |
-| Notification | `session.idle` | Desktop notification (cross-platform) |
+| console.log | `event` (`file.edited`) | Warn about debug statements |
+| Notification | `event` (`session.idle`) | Desktop notification (cross-platform) |
 | Security | `tool.execute.before` | Check for secrets |
 | Git Push Reminder | `tool.execute.before` | Remind to review before pushing |
 | Doc File Warning | `tool.execute.before` | Warn about unnecessary documentation |
 | Long Command Reminder | `tool.execute.before` | Remind about long-running commands |
-| Session Context | `session.created` | Load project context |
-| Console Log Audit | `session.idle` | Audit edited files for console.log |
-| File Watcher | `file.watcher.updated` | Track file system changes |
-| Todo Progress | `todo.updated` | Log task completion progress |
+| Session Context | `event` (`session.created`) | Load project context |
+| Console Log Audit | `event` (`session.idle`) | Audit edited files for console.log |
+| File Watcher | `event` (`file.watcher.updated`) | Track file system changes |
+| Todo Progress | `event` (`todo.updated`) | Log task completion progress |
 | Shell Environment | `shell.env` | Inject environment variables |
 | Session Compacting | `experimental.session.compacting` | Preserve context across compaction |
 | Permission Auto-Approve | `permission.ask` | Auto-approve safe operations |
@@ -171,15 +178,17 @@ a pointer to this command if the build step is missing.
 
 OpenCode's plugin system maps to Claude Code hooks:
 
-| Claude Code | OpenCode |
-|-------------|----------|
+| Claude Code | OpenCode delivery |
+|-------------|-------------------|
 | PreToolUse | `tool.execute.before` |
 | PostToolUse | `tool.execute.after` |
-| Stop | `session.idle` |
-| SessionStart | `session.created` |
-| SessionEnd | `session.deleted` |
+| Stop | `event` (`session.idle`) |
+| SessionStart | `event` (`session.created`) |
+| SessionEnd | `event` (`session.deleted`) |
 
-OpenCode has 20+ additional events not available in Claude Code.
+PreToolUse and PostToolUse map to named plugin hooks; the session mappings are
+event types delivered to the `event` hook. OpenCode has 20+ additional events not
+available in Claude Code.
 
 ### Hook Runtime Controls
 
@@ -229,8 +238,8 @@ Full configuration in `opencode.json`:
     "skills/tdd-workflow/SKILL.md",
     "skills/security-review/SKILL.md"
   ],
-  "agent": { /* 12 agents */ },
-  "command": { /* 24 commands */ }
+  "agent": { /* 27 agents */ },
+  "command": { /* 26 commands */ }
 }
 ```
 
@@ -243,6 +252,9 @@ selection, and its subagents inherit the invoking primary agent's model.
 MIT
 
 Home-target installations keep `plugins/index.ts` inert even with hooks enabled.
-OpenCode automatically loads `plugins/ecc-hooks.ts`; loading the barrel as well
-would initialize every ECC hook twice. The source and published package barrel
-remain available for module imports.
+OpenCode discovers plugins by scanning the `plugins/` directory independently of
+`opencode.json`, so the barrel is inert in the source checkout and the published
+package too — OpenCode loads `plugins/ecc-hooks.ts` directly, and loading the
+barrel as well would initialize every ECC hook twice. The published package root
+(`dist/index.js`) re-exports the real plugin from `plugins/ecc-hooks.ts`, and the
+`ecc-universal/plugins` subpath points at the same module for module importers.

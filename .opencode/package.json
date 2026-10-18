@@ -11,8 +11,8 @@
       "import": "./dist/index.js"
     },
     "./plugins": {
-      "types": "./dist/plugins/index.d.ts",
-      "import": "./dist/plugins/index.js"
+      "types": "./dist/plugins/ecc-hooks.d.ts",
+      "import": "./dist/plugins/ecc-hooks.js"
     },
     "./tools": {
       "types": "./dist/tools/index.d.ts",
@@ -21,6 +21,7 @@
   },
   "files": [
     "dist",
+    ".opencode/",
     "commands",
     "prompts",
     "instructions",
@@ -57,7 +58,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@opencode-ai/plugin": ">=1.0.0"
+    "@opencode-ai/plugin": ">=1.18.29"
   },
   "devDependencies": {
     "@opencode-ai/plugin": "^1.4.3",

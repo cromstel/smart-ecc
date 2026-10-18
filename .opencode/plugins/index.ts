@@ -1,12 +1,16 @@
 /**
- * ECC Plugins for OpenCode
+ * ECC Plugins barrel for OpenCode.
  *
- * This module exports all ECC plugins for OpenCode integration.
- * Plugins provide hook-based automation that mirrors Claude Code's hook system
- * while taking advantage of OpenCode's more sophisticated 20+ event types.
+ * OpenCode discovers plugins by scanning the `plugins/` directory, independent of
+ * `opencode.json`. This barrel MUST stay inert: loading it as a plugin would
+ * initialize every ECC hook a second time, because OpenCode loads
+ * `ecc-hooks.ts` directly (and again through the `plugins` directory alias).
+ * The published package root re-exports the real plugin from `ecc-hooks.ts`, so
+ * this file exists only to satisfy Node's directory-index resolution for module
+ * importers.
+ *
+ * This mirrors the inert stub the installer writes for home-target installs
+ * (`scripts/lib/install/hook-consent.js` → getDisabledOpenCodePluginContent).
  */
 
-export { ECCHooksPlugin, default } from "./ecc-hooks.ts"
-
-// Re-export for named imports
-export * from "./ecc-hooks.ts"
+export default async () => ({})

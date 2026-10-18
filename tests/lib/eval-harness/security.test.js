@@ -4,6 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { trySymlinkSync } = require('../../lib/helpers/symlink-privilege');
 const { test, tempDir, cleanup, finish } = require('./helpers');
 const gate = require('../../../scripts/lib/eval-harness/gate');
 const library = path.resolve(__dirname, '../../../scripts/lib/eval-harness');
@@ -109,11 +110,11 @@ test('symlink manifests and symlink trees cannot hide from digest', () => setup(
   const file = path.join(c.variant, 'variant.json');
   const outside = path.join(c.root, 'manifest.json');
   fs.renameSync(file, outside);
-  fs.symlinkSync(outside, file);
+  if (!trySymlinkSync(fs, outside, file)) { console.log('    (skipped: symlink creation not permitted here)'); return; }
   assert.throws(() => gate.loadVariant(c.variant), invalidVariant);
   fs.unlinkSync(file);
   fs.renameSync(outside, file);
-  fs.symlinkSync(c.root, path.join(c.variant, 'link'));
+  if (!trySymlinkSync(fs, c.root, path.join(c.variant, 'link'))) { console.log('    (skipped: symlink creation not permitted here)'); return; }
   assert.throws(() => gate.loadVariant(c.variant), invalidVariant);
 }));
 

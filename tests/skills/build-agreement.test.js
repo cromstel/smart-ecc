@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { trySymlinkSync } = require('../lib/helpers/symlink-privilege');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const scriptPath = path.join(repoRoot, 'skills/master-agreement-generator/scripts/build-agreement.js');
@@ -215,7 +216,10 @@ for (const extension of ['md', 'docx']) {
       fs.mkdirSync(fixture.outDir);
       const target = path.join(fixture.artifacts, 'external');
       if (!dangling) fs.writeFileSync(target, 'do not overwrite');
-      fs.symlinkSync(target, path.join(fixture.outDir, `Acme MASTER.${extension}`), 'file');
+      if (!trySymlinkSync(fs, target, path.join(fixture.outDir, `Acme MASTER.${extension}`), 'file')) {
+        console.log('    (skipped: symlink creation not permitted here)');
+        return;
+      }
       const other = extension === 'md' ? 'docx' : 'md';
       fs.writeFileSync(path.join(fixture.outDir, `Acme MASTER.${other}`), 'existing output');
       const before = snapshot(fixture.artifacts);

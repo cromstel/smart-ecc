@@ -447,10 +447,11 @@ async function main() {
     });
   });
 
+  const { trySymlinkSync } = require('../lib/helpers/symlink-privilege');
   await test('starts when the npm bin invokes the server through a symlink', async () => {
     const binRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ecc-memory-bin-'));
     const binPath = path.join(binRoot, 'ecc-memory-mcp');
-    fs.symlinkSync(SERVER, binPath);
+    if (!trySymlinkSync(fs, SERVER, binPath)) { console.log('    (skipped: symlink creation not permitted here)'); return; }
     try {
       await withClient(async client => {
         const tools = await client.listTools();

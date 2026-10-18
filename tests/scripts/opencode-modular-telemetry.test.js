@@ -38,9 +38,21 @@ try {
       $: () => { throw new Error('Offline fixture must not execute shell commands'); },
       directory: process.cwd(), worktree: process.cwd() };
     const loaded = [];
+    const seen = new Set();
     for (const name of fs.readdirSync(path.join(root, 'plugins')).filter(name => /\\.ts$/.test(name))) {
       const mod = await import(pathToFileURL(path.join(root, 'plugins', name)).href);
-      for (const entry of new Set(Object.values(mod))) loaded.push(await entry(context));
+      for (const entry of Object.values(mod)) {
+        // The plugin default export is a dual-API object ({ id, setup, server })
+        // for OpenCode's V1 object entrypoint; the named/legacy shape is a
+        // function. Both resolve to the same server implementation, so dedupe
+        // on the function identity rather than the export value.
+        const server = typeof entry === 'function' ? entry : entry && typeof entry.server === 'function' ? entry.server : null;
+        if (!server || seen.has(server)) continue;
+        seen.add(server);
+        const hooks = await server(context);
+        // The V2 setup() adapter returns a cleanup function, not a Hooks object.
+        if (hooks && typeof hooks['tool.execute.after'] === 'function') loaded.push(hooks);
+      }
     }
     const live = loaded.filter(hooks => typeof hooks['tool.execute.after'] === 'function');
     assert.equal(live.length, 1, 'Local discovery must register exactly one live ECC plugin');

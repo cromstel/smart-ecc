@@ -111,7 +111,17 @@ run('blocks existing case-variant protected names on every filesystem', () => {
 run('blocks a dangling symlink to a protected name', () => {
   const dangling = path.join(tmp, 'eslint.config.cjs');
   try { fs.unlinkSync(dangling); } catch { /* not present yet */ }
-  fs.symlinkSync(path.join(tmp, 'does-not-exist-at-all'), dangling);
+  try {
+    fs.symlinkSync(path.join(tmp, 'does-not-exist-at-all'), dangling);
+  } catch (err) {
+    // Windows without Developer Mode or certain sandboxes disallow symlinks.
+    // Skip cleanly rather than fail the suite (mirrors config-protection tests).
+    if (err.code === 'EPERM' || err.code === 'EACCES') {
+      console.log('    (skipped: symlink creation not permitted here)');
+      return;
+    }
+    throw err;
+  }
   // Sanity: the link itself exists (lstat succeeds) but resolves nowhere —
   // os.path.exists() is False here, which is exactly the bypass being pinned.
   assert.ok(fs.lstatSync(dangling).isSymbolicLink(), 'symlink must exist for the case to be real');

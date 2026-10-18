@@ -37,6 +37,10 @@ OpenCode is an alternative CLI for AI-assisted development that supports **all**
 | N/A | `lsp.client.diagnostics` | OpenCode-only: LSP integration |
 | N/A | `tui.toast.show` | OpenCode-only: notifications |
 
+`tool.execute.before` and `tool.execute.after` are named plugin hooks. The
+remaining rows are OpenCode event types delivered to the plugin's single `event`
+hook, which dispatches on `event.type`.
+
 ### Converting Hooks to Plugins
 
 **Claude Code hook (hooks.json):**
@@ -67,14 +71,18 @@ export const PrettierPlugin = async ({ $ }) => {
 
 ### ECC Plugin Hooks Included
 
-The ECC OpenCode configuration includes translated hooks:
+The ECC OpenCode plugin registers a single `event` hook plus five named hooks
+(`tool.execute.before`, `tool.execute.after`, `shell.env`,
+`experimental.session.compacting`, `permission.ask`). The V1 `Hooks` interface
+declares no top-level key for file, session, or todo updates, so those arrive as
+events on the `event` hook and are dispatched on `event.type`:
 
-| Hook | OpenCode Event | Purpose |
-|------|----------------|---------|
-| Prettier auto-format | `file.edited` | Format JS/TS files after edit |
+| Hook | OpenCode delivery | Purpose |
+|------|-------------------|---------|
+| Prettier auto-format | `event` (`file.edited`) | Format JS/TS files after edit |
 | TypeScript check | `tool.execute.after` | Run tsc after editing .ts files |
-| console.log warning | `file.edited` | Warn about console.log statements |
-| Session notification | `session.idle` | Notify when task completes |
+| console.log warning | `event` (`file.edited`) | Warn about console.log statements |
+| Session notification | `event` (`session.idle`) | Notify when task completes |
 | Security check | `tool.execute.before` | Check for secrets before commit |
 
 ## Migration Steps
@@ -102,12 +110,12 @@ The `.opencode/` directory in this repository contains the translated configurat
 │   ├── run-tests.ts           # Run test suite
 │   ├── check-coverage.ts      # Check coverage
 │   └── security-audit.ts      # npm audit wrapper
-├── commands/                  # All 23 commands (markdown)
+├── commands/                  # 35 command files (26 registered in opencode.json)
 │   ├── plan.md
 │   ├── tdd.md
-│   └── ... (21 more)
+│   └── ... (33 more)
 ├── prompts/
-│   └── agents/                # Agent prompt files (12)
+│   └── agents/                # Agent prompt files (26)
 ├── instructions/
 │   └── INSTRUCTIONS.md        # Consolidated rules
 ├── package.json               # For npm distribution
@@ -230,7 +238,7 @@ Create a detailed implementation plan for: $ARGUMENTS
 
 ## Available Commands
 
-After migration, ALL 23 commands are available:
+After migration, ALL 26 commands configured in `opencode.json` are available:
 
 | Command | Description |
 |---------|-------------|
@@ -263,8 +271,11 @@ After migration, ALL 23 commands are available:
 
 ## Available Agents
 
+The `opencode.json` config registers 27 agents (26 curated subagent prompts plus the primary `build` agent):
+
 | Agent | Description |
 |-------|-------------|
+| `build` | Primary coding agent |
 | `planner` | Implementation planning |
 | `architect` | System design |
 | `code-reviewer` | Code review |
@@ -276,7 +287,21 @@ After migration, ALL 23 commands are available:
 | `refactor-cleaner` | Dead code cleanup |
 | `go-reviewer` | Go code review |
 | `go-build-resolver` | Go build errors |
+| `java-reviewer` | Java code review |
+| `java-build-resolver` | Java build errors |
+| `kotlin-reviewer` | Kotlin code review |
+| `kotlin-build-resolver` | Kotlin build errors |
+| `rust-reviewer` | Rust code review |
+| `rust-build-resolver` | Rust build errors |
+| `cpp-reviewer` | C++ code review |
+| `cpp-build-resolver` | C++ build errors |
+| `php-reviewer` | PHP code review |
+| `python-reviewer` | Python code review |
+| `ruby-reviewer` | Ruby code review |
 | `database-reviewer` | Database optimization |
+| `docs-lookup` | Documentation lookup via Context7 |
+| `harness-optimizer` | Harness config tuning |
+| `loop-operator` | Autonomous loop execution |
 
 ## Plugin Installation
 
@@ -351,13 +376,17 @@ If you need to switch back:
 
 ## Feature Parity Summary
 
+ECC ships 71 agents, 97 commands, and 311 skills in the repository. The bundled
+`.opencode/opencode.json` intentionally registers a curated OpenCode subset, so
+the OpenCode overlay does not mirror the full Claude Code catalog:
+
 | Feature | Claude Code | OpenCode | Status |
 |---------|-------------|----------|--------|
-| Agents | PASS: 12 agents | PASS: 12 agents | **Full parity** |
-| Commands | PASS: 23 commands | PASS: 23 commands | **Full parity** |
-| Skills | PASS: 16 skills | PASS: 16 skills | **Full parity** |
+| Agents | PASS: 71 | PASS: 27 curated (`agent`) | **Curated subset** |
+| Commands | PASS: 97 | PASS: 26 configured (`command`) | **Curated subset** |
+| Skills | PASS: 311 | PASS: 11 loaded by default | **Curated subset** |
 | Hooks | PASS: 3 phases | PASS: 20+ events | **OpenCode has MORE** |
-| Rules | PASS: 8 rules | PASS: 8 rules | **Full parity** |
+| Rules | PASS: 10 (`rules/common`) | PASS: 10 (`rules/common`) | **Full parity** |
 | MCP Servers | PASS: Full | PASS: Full | **Full parity** |
 | Custom Tools | PASS: Via hooks | PASS: Native support | **OpenCode is better** |
 

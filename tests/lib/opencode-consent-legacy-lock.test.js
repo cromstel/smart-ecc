@@ -21,6 +21,9 @@ const SOURCE_RELATIVE_PATH = path.join('skills', 'skill-comply', 'SKILL.md');
 const SKILL_CONTENT = '---\nname: skill-comply\ndescription: Synthetic migration fixture.\n---\n\n# Inert fixture\n';
 const sha256 = value => crypto.createHash('sha256').update(value).digest('hex');
 const lockPath = root => path.join(root, 'ecc-install-state.json.ecc.lock');
+// Sentinel for a case that cannot run because the platform denies the filesystem
+// primitive it needs (e.g. Windows without symlink privilege).
+const SKIP = Symbol('skip');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -78,7 +81,7 @@ function privateFixture(callback) {
       'manifests/install-profiles.json', 'manifests/install-components.json', SOURCE_RELATIVE_PATH];
     const sourceSnapshot = new Map(sourceFiles.map(relative => [relative,
       fs.readFileSync(path.join(sourceRoot, relative))]));
-    callback({ root, homeDir, sourceRoot, sourcePath, sourceSnapshot, legacyRoot, canonicalRoot,
+    return callback({ root, homeDir, sourceRoot, sourcePath, sourceSnapshot, legacyRoot, canonicalRoot,
       legacyFile, legacyStatePath, canonicalStatePath, canonicalPlan });
   } finally {
     // The generated payload and all install paths are inside this fixture.
@@ -177,8 +180,13 @@ function buildInertPayload(sourceRoot) {
 function runTests() {
   let passed = 0;
   let failed = 0;
+  let skipped = 0;
   function test(name, callback) {
-    try { privateFixture(callback); passed++; console.log(`  PASS ${name}`); }
+    try {
+      const outcome = privateFixture(callback);
+      if (outcome === SKIP) { skipped++; console.log(`  SKIP ${name}`); }
+      else { passed++; console.log(`  PASS ${name}`); }
+    }
     catch (error) { failed++; console.error(`  FAIL ${name}: ${error.stack}`); }
   }
   test('legacy repair holds both roots before build and releases them after a throwing builder', value => {
@@ -342,7 +350,20 @@ function runTests() {
       if (defect === 'missing-digest') delete state.operations[2].contentSha256;
       if (defect === 'source-mismatch') fs.writeFileSync(source, 'different trusted source\n');
       if (defect === 'source-missing') fs.unlinkSync(source);
-      if (defect === 'symlink') { fs.unlinkSync(plugin); fs.symlinkSync(source, plugin); }
+      if (defect === 'symlink') {
+        try {
+          fs.unlinkSync(plugin);
+          fs.symlinkSync(source, plugin);
+        } catch (err) {
+          // Windows without Developer Mode or certain sandboxes disallow symlinks.
+          // Skip cleanly rather than fail the suite.
+          if (err.code === 'EPERM' || err.code === 'EACCES') {
+            console.log('    (skipped: symlink creation not permitted here)');
+            return SKIP;
+          }
+          throw err;
+        }
+      }
       if (defect === 'unrecorded-alias') fs.copyFileSync(source, path.join(value.legacyRoot, 'plugins/index.js'));
       if (defect === 'merge-json') state.operations[1].kind = 'merge-json';
       writeInstallState(value.legacyStatePath, state);
@@ -533,8 +554,8 @@ function runTests() {
       assert.deepStrictEqual(closed, opened, 'close each owned descriptor exactly once');
     });
   }
-  console.log(`\nResults: Passed: ${passed}, Failed: ${failed}`);
-  return { passed, failed };
+  console.log(`\nResults: Passed: ${passed}, Failed: ${failed}, Skipped: ${skipped}`);
+  return { passed, failed, skipped };
 }
 
 if (require.main === module) process.exitCode = runTests().failed ? 1 : 0;

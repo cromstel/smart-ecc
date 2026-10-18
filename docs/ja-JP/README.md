@@ -1573,17 +1573,17 @@ opencode
 
 #### plugins による hook サポート
 
-OpenCode の plugin システムには 20 種類以上のイベントタイプがあります：
+OpenCode の plugin システムは 6 つの plugin フック（`event`、`tool.execute.before`、`tool.execute.after`、`shell.env`、`experimental.session.compacting`、`permission.ask`）と 20 種類以上のイベントタイプを提供します：
 
-| Claude Code Hook | OpenCode Plugin イベント |
+| Claude Code Hook | OpenCode の提供方法 |
 |-----------------|----------------------|
 | PreToolUse | `tool.execute.before` |
 | PostToolUse | `tool.execute.after` |
-| Stop | `session.idle` |
-| SessionStart | `session.created` |
-| SessionEnd | `session.deleted` |
+| Stop | `event` (`session.idle`) |
+| SessionStart | `event` (`session.created`) |
+| SessionEnd | `event` (`session.deleted`) |
 
-**追加の OpenCode イベント**：`file.edited`、`file.watcher.updated`、`message.updated`、`lsp.client.diagnostics`、`tui.toast.show` など。
+PreToolUse と PostToolUse は名前付き plugin フックに対応し、セッションライフサイクルの行は単一の `event` フックに配信されるイベントタイプです。**追加の OpenCode イベント**：`file.edited`、`file.watcher.updated`、`message.updated`、`lsp.client.diagnostics`、`tui.toast.show` など。
 
 #### Plugin のインストール
 

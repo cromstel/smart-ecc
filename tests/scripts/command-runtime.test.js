@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { trySymlinkSync } = require('../lib/helpers/symlink-privilege');
 const { pathToFileURL } = require('url');
 const { createManifestInstallPlan, applyInstallPlan, previewInstallPlan } = require('../../scripts/lib/install-executor');
 const { withHookConsent } = require('../../scripts/lib/install/hook-consent');
@@ -186,7 +187,10 @@ for (const scope of ['package.json', 'lib/package.json']) {
   test(`symlinked ${scope} refuses before mutation`, f => {
     const file = path.join(f.scripts, scope); const outside = path.join(f.dir, 'user-package.json');
     f.write(outside, '{"type":"commonjs"}\n'); fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.symlinkSync(outside, file); const before = snapshot(f.dir);
+    if (!trySymlinkSync(fs, outside, file)) {
+      console.log('    (skipped: symlink creation not permitted here)'); return;
+    }
+    const before = snapshot(f.dir);
     assert.notStrictEqual(f.install().status, 0); assert.deepStrictEqual(snapshot(f.dir), before);
   });
 }

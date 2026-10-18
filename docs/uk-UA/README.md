@@ -1492,17 +1492,17 @@ opencode
 
 #### Підтримка хуків через плагіни
 
-Система плагінів OpenCode має 20+ типів подій:
+Система плагінів OpenCode надає шість хуків плагіна (`event`, `tool.execute.before`, `tool.execute.after`, `shell.env`, `experimental.session.compacting`, `permission.ask`) та 20+ типів подій:
 
-| Хук Claude Code | Подія плагіна OpenCode |
+| Хук Claude Code | Спосіб доставки в OpenCode |
 |-----------------|----------------------|
 | PreToolUse | `tool.execute.before` |
 | PostToolUse | `tool.execute.after` |
-| Stop | `session.idle` |
-| SessionStart | `session.created` |
-| SessionEnd | `session.deleted` |
+| Stop | `event` (`session.idle`) |
+| SessionStart | `event` (`session.created`) |
+| SessionEnd | `event` (`session.deleted`) |
 
-**Додаткові події OpenCode**: `file.edited`, `file.watcher.updated`, `message.updated`, `lsp.client.diagnostics`, `tui.toast.show` та інші.
+PreToolUse і PostToolUse відповідають іменованим хукам плагіна; рядки життєвого циклу сесії — це типи подій, що доставляються до єдиного хука `event`. **Додаткові події OpenCode**: `file.edited`, `file.watcher.updated`, `message.updated`, `lsp.client.diagnostics`, `tui.toast.show` та інші.
 
 #### Встановлення плагіна
 

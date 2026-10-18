@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { trySymlinkSync } = require('../lib/helpers/symlink-privilege');
 const { normalizeManifest, buildInventory, collectResources, collectTaskFiles, readJson } = require('../../scripts/lib/coordination-inventory');
 const now = '2026-09-08T06:30:00.000Z';
 const task = (id, paths, extra = {}) => ({ id, repoId: 'repo', paths, ...extra });
@@ -83,11 +84,14 @@ test('live process snapshot enriches matching tasks and marks missing PID as uno
   const r = buildInventory(f, { now, resources });
   assert.equal(r.tasks[0].process.state, 'observed'); assert.equal(r.tasks[1].process.state, 'not-observed');
 });
-test('task file adapter reads structured status, labels mtime, skips symlinks and rejects oversized JSON', () => {
+test('task file adapter reads structured status, labels mtime, skips symlinks and rejects oversized JSON', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coordination-test-'));
   try {
     fs.mkdirSync(path.join(dir, 'worker')); fs.writeFileSync(path.join(dir, 'worker', 'STATUS.md'), '- State: running\n- Updated: 2026-09-08T06:29:00Z\n');
-    fs.symlinkSync(path.join(dir, 'worker'), path.join(dir, 'linked'));
+    if (!trySymlinkSync(fs, path.join(dir, 'worker'), path.join(dir, 'linked'))) {
+      t.skip('symlink creation not permitted here');
+      return;
+    }
     const r = collectTaskFiles(dir); assert.equal(r.tasks.length, 1); assert.equal(r.tasks[0].status, 'running');
     assert.ok(r.tasks[0].statusFileModifiedAt); assert.equal(r.tasks[0].heartbeatAt, '2026-09-08T06:29:00Z');
     fs.writeFileSync(path.join(dir, 'large.json'), ' '.repeat(1024 * 1024 + 1));

@@ -34,21 +34,29 @@ function checkRuntime(runtimeRoot, extension, loader, installedHome = false) {
       const plugins = await load("plugins/index")
       const entry = await load("index")
       assert.deepEqual(Object.keys(entry), ["default"])
-      assert.equal(entry.default, plugins.default)
-      const logs = []
-      // Home installs are auto-discovered. Their barrel must stay inert so
-      // the hooks module is initialized exactly once; published package entry
-      // imports continue to expose the actual plugin.
+      const defaultExport = entry.default
       const active = installedHome === "true" ? await load("plugins/ecc-hooks") : entry
-      if (installedHome === "true") assert.deepEqual(await entry.default({}), {})
-      const plugin = await active.default({
+      if (installedHome === "true") {
+        const de = active.default
+        if (typeof de === "function") await de({})
+        else await de.server({})
+      }
+      const pluginSource = installedHome === "true" ? active : entry
+      const pluginExport = pluginSource.default
+      const plugin = typeof pluginExport === "function" ? await pluginExport({
+        client: { app: { log: (event) => logs.push(event.body) } },
+        $: () => { throw new Error("Unexpected shell execution") },
+        directory: process.cwd(),
+        worktree: process.cwd(),
+      }) : await pluginExport.server({
         client: { app: { log: (event) => logs.push(event.body) } },
         $: () => { throw new Error("Unexpected shell execution") },
         directory: process.cwd(),
         worktree: process.cwd(),
       })
-      assert.equal(typeof plugin["session.created"], "function")
-      await plugin["file.edited"]({ path: path.join(process.cwd(), "example.txt") })
+      const logs = []
+      assert.equal(typeof plugin.event, "function")
+      await plugin.event({ event: { type: "file.edited", properties: { file: "example.txt" } } })
       const changed = JSON.parse(await tools.changedFiles.execute({ format: "json" }, {}))
       assert.equal(changed.changed, true)
       assert.deepEqual(changed.files, [{ path: "example.txt", changeType: "modified" }])
@@ -140,8 +148,12 @@ function main() {
             throw new Error("unexpected entry resolution: " + resolved)
           }
           const mod = await import("ecc-universal")
-          if (Object.keys(mod).join(",") !== "default" || typeof mod.default !== "function") {
-            throw new Error("root module must export exactly the plugin function")
+          const keys = Object.keys(mod).sort()
+          if (keys.join(",") !== "default") {
+            throw new Error("root module must export default")
+          }
+          if (typeof mod.default !== "object") {
+            throw new Error("root module must export object form with id/setup/server")
           }
         `
         const probePath = path.join(tempDir, "probe.mjs")
@@ -196,10 +208,14 @@ function main() {
             process.exit(1)
           }
           assert.deepStrictEqual(Object.keys(mod).sort(), ["default"])
-          assert.strictEqual(typeof mod.default, "function")
+          const def = mod.default
+          assert.strictEqual(typeof def, "object")
+          assert.ok(def && typeof def.id === "string")
+          assert.ok(typeof def.setup === "function")
+          assert.ok(typeof def.server === "function")
 
           let shellCalls = 0
-          const plugin = await mod.default({
+          const plugin = await def.server({
             client: { app: { log: () => {} } },
             $: async () => {
               shellCalls += 1
@@ -211,14 +227,9 @@ function main() {
           assert.strictEqual(shellCalls, 0, "$ must not be called during plugin init")
           assert.ok(plugin && typeof plugin === "object", "default export must return a plugin record")
           const expectedHooks = [
-            "file.edited",
+            "event",
             "tool.execute.after",
             "tool.execute.before",
-            "session.created",
-            "session.idle",
-            "session.deleted",
-            "file.watcher.updated",
-            "todo.updated",
             "shell.env",
             "experimental.session.compacting",
             "permission.ask",
@@ -256,8 +267,6 @@ function main() {
       checkRuntime(path.dirname(distEntry), ".js")
     }],
     ["full home install loads TypeScript barrels and the lazy changed-files store", () => {
-      // Keep the fixture beneath the repo so the installed tools can resolve
-      // the real SDK dependency without installing packages in the user's home.
       const fixture = fs.mkdtempSync(path.join(repoRoot, "tests", ".opencode-home-"))
       try {
         const homeDir = path.join(fixture, "home")
@@ -300,54 +309,18 @@ function main() {
       const packEntry = getNpmPackEntry(packOutput, packageJson.name)
       const packagedPaths = new Set(packEntry?.files?.map((file) => file.path) ?? [])
 
-      assert.ok(
-        packagedPaths.has(".opencode/dist/index.js"),
-        "npm pack should include .opencode/dist/index.js"
-      )
-      assert.ok(
-        packagedPaths.has(".opencode/dist/plugins/index.js"),
-        "npm pack should include compiled OpenCode plugin output"
-      )
-      assert.ok(
-        packagedPaths.has(".opencode/dist/tools/index.js"),
-        "npm pack should include compiled OpenCode tool output"
-      )
-      assert.ok(
-        packagedPaths.has(".claude-plugin/marketplace.json"),
-        "npm pack should include .claude-plugin/marketplace.json"
-      )
-      assert.ok(
-        packagedPaths.has(".claude-plugin/plugin.json"),
-        "npm pack should include .claude-plugin/plugin.json"
-      )
-      assert.ok(
-        packagedPaths.has(".codex-plugin/plugin.json"),
-        "npm pack should include .codex-plugin/plugin.json"
-      )
-      assert.ok(
-        packagedPaths.has(".agents/plugins/marketplace.json"),
-        "npm pack should include .agents/plugins/marketplace.json"
-      )
-      assert.ok(
-        packagedPaths.has(".opencode/package.json"),
-        "npm pack should include .opencode/package.json"
-      )
-      assert.ok(
-        packagedPaths.has(".opencode/package-lock.json"),
-        "npm pack should include .opencode/package-lock.json"
-      )
-      assert.ok(
-        packagedPaths.has("agent.yaml"),
-        "npm pack should include agent.yaml"
-      )
-      assert.ok(
-        packagedPaths.has("AGENTS.md"),
-        "npm pack should include AGENTS.md"
-      )
-      assert.ok(
-        packagedPaths.has("VERSION"),
-        "npm pack should include VERSION"
-      )
+      assert.ok(packagedPaths.has(".opencode/dist/index.js"))
+      assert.ok(packagedPaths.has(".opencode/dist/plugins/index.js"))
+      assert.ok(packagedPaths.has(".opencode/dist/tools/index.js"))
+      assert.ok(packagedPaths.has(".claude-plugin/marketplace.json"))
+      assert.ok(packagedPaths.has(".claude-plugin/plugin.json"))
+      assert.ok(packagedPaths.has(".codex-plugin/plugin.json"))
+      assert.ok(packagedPaths.has(".agents/plugins/marketplace.json"))
+      assert.ok(packagedPaths.has(".opencode/package.json"))
+      assert.ok(packagedPaths.has(".opencode/package-lock.json"))
+      assert.ok(packagedPaths.has("agent.yaml"))
+      assert.ok(packagedPaths.has("AGENTS.md"))
+      assert.ok(packagedPaths.has("VERSION"))
     }],
   ]
 

@@ -34,7 +34,12 @@
  * @packageDocumentation
  */
 
-// Export the main plugin
-// opencode's legacy plugin loader iterates every module export and throws if
-// any is not a plugin function, so only the plugin function may be exported.
-export { default } from "./plugins/index.ts"
+// Export the main plugin.
+// The default is the dual-support entrypoint: a V1 `server()` plugin function
+// plus the V2 `id` and `setup(ctx)` pair (see plugins/ecc-hooks.ts). Only the
+// default is re-exported so the published module exposes a single entrypoint.
+//
+// The plugin is re-exported directly from `plugins/ecc-hooks.ts`. `plugins/index.ts`
+// is an inert barrel: OpenCode auto-discovers every `plugins/*.ts`, so a real
+// barrel would register every hook a second time.
+export { default } from "./plugins/ecc-hooks.ts"

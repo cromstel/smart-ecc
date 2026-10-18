@@ -1347,17 +1347,17 @@ opencode
 
 ### Поддержка хуков через плагины
 
-Система плагинов OpenCode БОЛЕЕ продвинута, чем Claude Code, и имеет 20+ типов событий:
+Система плагинов OpenCode предоставляет шесть хуков плагина (`event`, `tool.execute.before`, `tool.execute.after`, `shell.env`, `experimental.session.compacting`, `permission.ask`) и более 20 типов событий:
 
-| Claude Code Hook | OpenCode Plugin Event |
+| Claude Code Hook | Доставка в OpenCode |
 |------------------|----------------------|
 | PreToolUse | `tool.execute.before` |
 | PostToolUse | `tool.execute.after` |
-| Stop | `session.idle` |
-| SessionStart | `session.created` |
-| SessionEnd | `session.deleted` |
+| Stop | `event` (`session.idle`) |
+| SessionStart | `event` (`session.created`) |
+| SessionEnd | `event` (`session.deleted`) |
 
-**Дополнительные события OpenCode**: `file.edited`, `file.watcher.updated`, `message.updated`, `lsp.client.diagnostics`, `tui.toast.show` и другие.
+PreToolUse и PostToolUse соответствуют именованным хукам плагина; строки жизненного цикла сессии — это типы событий, доставляемые единственному хуку `event`. **Дополнительные события OpenCode**: `file.edited`, `file.watcher.updated`, `message.updated`, `lsp.client.diagnostics`, `tui.toast.show` и другие.
 
 ### Поддерживаемые slash-записи
 
